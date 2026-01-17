@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>FNaF Natal - NOITE 5 (HARDCORE)</title>
+    <style>
+        body { background: #000; color: #eee; font-family: monospace; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #game-box { width: 850px; height: 650px; position: relative; background: #050505; border: 2px solid #300; box-shadow: 0 0 20px rgba(255,0,0,0.1); }
+        
+        .hud { position: absolute; top: 0; width: 100%; height: 50px; background: #000; display: flex; justify-content: space-around; align-items: center; z-index: 1001; border-bottom: 1px solid #400; }
+        .radar { position: absolute; top: 60px; font-size: 11px; padding: 5px 10px; border: 1px solid #333; background: rgba(0,0,0,0.8); z-index: 1000; }
+
+        #office { position: absolute; top: 50px; width: 100%; height: 400px; background: #050505; transition: background 0.05s; }
+        
+        .door { width: 150px; height: 0%; background: #151515; position: absolute; bottom: 0; transition: 0.2s; z-index: 100; border-top: 5px solid #444; }
+        #door-l { left: 0; } #door-r { right: 0; }
+        .closed { height: 100% !important; }
+        #door-mid { position: absolute; left: 150px; width: 550px; top: 0; height: 0px; background: #111; border-bottom: 8px solid #333; z-index: 95; transition: 0.3s; }
+
+        .control-panel { position: absolute; bottom: 0; width: 100%; height: 200px; background: #0a0a0a; border-top: 2px solid #222; display: grid; grid-template-columns: 1fr 1.5fr 1fr; padding: 20px; box-sizing: border-box; gap: 15px; }
+        .btn-col { display: flex; flex-direction: column; gap: 8px; }
+        button { background: #1a1a1a; color: #777; border: 1px solid #333; padding: 12px; cursor: pointer; font-weight: bold; }
+        .active-btn { background: #333 !important; color: #ff0000 !important; border-color: #ff0000 !important; }
+        .btn-mon { height: 100%; border: 2px solid #0f0 !important; color: #0f0 !important; }
+
+        #monitor { position: absolute; inset: 0; background: #000; z-index: 2000; display: none; flex-direction: column; }
+        .cam-view { flex: 1; display: flex; align-items: center; justify-content: center; border: 10px solid #111; position: relative; }
+        
+        #scare-screen { position: absolute; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; color: red; }
+    </style>
+</head>
+<body onclick="initAudio()">
+
+<div id="game-box">
+    <div id="scare-screen"><h1>SISTEMA CRÍTICO - ERRO FATAL</h1></div>
+
+    <div class="hud">
+        <span>🔋 <span id="p-val">100</span>%</span>
+        <span style="color:red; font-weight:bold; animation: blink 1s infinite;">NOITE 5: FINAL</span>
+        <span>🕒 <span id="h-val">12</span> AM</span>
+    </div>
+
+    <div id="rad-l" class="radar" style="left:10px;">SISTEMA L: OK</div>
+    <div id="rad-r" class="radar" style="right:10px;">SISTEMA R: OK</div>
+
+    <div id="office">
+        <div id="door-l" class="door"></div>
+        <div id="door-mid"></div>
+        <div id="door-r" class="door"></div>
+    </div>
+
+    <div class="control-panel">
+        <div class="btn-col">
+            <button id="b-dl" onclick="useDoor('L')">PORTA ESQ</button>
+            <button onmousedown="useLight('L',true)" onmouseup="useLight('L',false)">LUZ ESQ</button>
+        </div>
+        <div class="btn-col">
+            <button class="btn-mon" onclick="toggleMon(true)">ABRIR MONITOR</button>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                <button id="b-dm" onclick="useDoor('M')">MEIA PORTA</button>
+                <button onmousedown="useLight('M',true)" onmouseup="useLight('M',false)">LUZ MEIO</button>
+            </div>
+        </div>
+        <div class="btn-col">
+            <button id="b-dr" onclick="useDoor('R')">PORTA DIR</button>
+            <button onmousedown="useLight('R',true)" onmouseup="useLight('R',false)">LUZ DIR</button>
+        </div>
+    </div>
+
+    <div id="monitor">
+        <div class="cam-view">
+            <h2 id="cam-name" style="position:absolute; top:20px; left:20px; color:#0f0;">CAM 1A</h2>
+            <div id="cam-content" style="display:flex; gap:15px;"></div>
+        </div>
+        <div style="height:100px; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:10px;">
+            <button onclick="setCam('1A')">PALCO</button>
+            <button onclick="setCam('1C')">COVA</button>
+            <button onclick="setCam('2B')">HALL L</button>
+            <button onclick="setCam('4B')">HALL R</button>
+            <button onclick="toggleMon(false)" style="grid-column: span 4; background:#fff; color:#000;">FECHAR</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let energy = 100, hour = 0, active = true, curCam = '1A';
+    let bPos = 0, cPos = 0, fPos = 0;
+    let dL=false, dR=false, dM=false, mon=false, audio;
+
+    function initAudio() { if(!audio) { audio = new (window.AudioContext || window.webkitAudioContext)(); } }
+    function playSfx(f, t, d) { if(!audio) return; let o=audio.createOscillator(), v=audio.createGain(); o.type=t; o.frequency.value=f; v.gain.value=0.03; o.connect(v); v.connect(audio.destination); o.start(); o.stop(audio.currentTime+d); }
+
+    // Loop de Tempo
+    setInterval(() => {
+        if(!active) return;
+        hour++;
+        if(hour <= 6) document.getElementById('h-val').innerText = hour;
+        if(hour === 6) { active = false; alert("VOCÊ SOBREVIVEU À NOITE FINAL!"); location.reload(); }
+    }, 25000); // Noite 5 é um pouco mais rápida!
+
+    // Loop de Energia e Radar
+    setInterval(() => {
+        if(!active) return;
+        // Gasto de energia Hardcore
+        energy -= (0.22 + (dL?0.5:0) + (dR?0.5:0) + (dM?0.3:0) + (mon?0.4:0));
+        document.getElementById('p-val').innerText = Math.floor(energy);
+        if(energy <= 0) jumpscare();
+
+        const rl = document.getElementById('rad-l'), rr = document.getElementById('rad-r');
+        rl.innerText = bPos >= 4 ? "ALERTA L: INVASÃO" : "SISTEMA L: OK";
+        rl.style.color = bPos >= 4 ? "red" : "#0f0";
+        rr.innerText = (cPos >= 4 || fPos >= 4) ? "ALERTA R: INVASÃO" : "SISTEMA R: OK";
+        rr.style.color = (cPos >= 4 || fPos >= 4) ? "red" : "#0f0";
+    }, 1000);
+
+    // IA AGRESSIVA NOITE 5
+    setInterval(() => {
+        if(!active) return;
+        if(Math.random() > 0.25) bPos++; 
+        if(Math.random() > 0.25) cPos++; 
+        if(Math.random() > 0.35) fPos++; 
+        
+        if(audio && Math.random() > 0.8) playSfx(40, 'sawtooth', 0.1); // Sons de passos
+
+        if(bPos >= 5) { if(dL) { bPos = 0; playSfx(80, 'sine', 0.2); } else jumpscare(); }
+        if(cPos >= 5) { if(dR) { cPos = 0; playSfx(80, 'sine', 0.2); } else jumpscare(); }
+        if(fPos >= 7) { if(dM) { fPos = 0; playSfx(80, 'sine', 0.2); } else jumpscare(); }
+        if(mon) updateCam();
+    }, 1800); // Velocidade máxima!
+
+    function useDoor(s) {
+        initAudio(); playSfx(150, 'sine', 0.1);
+        if(s === 'M') {
+            dM = !dM;
+            document.getElementById('door-mid').style.height = dM ? "180px" : "0px";
+            document.getElementById('b-dm').classList.toggle('active-btn', dM);
+        } else {
+            if(s === 'L') { dL = !dL; document.getElementById('door-l').classList.toggle('closed', dL); document.getElementById('b-dl').classList.toggle('active-btn', dL); }
+            if(s === 'R') { dR = !dR; document.getElementById('door-r').classList.toggle('closed', dR); document.getElementById('b-dr').classList.toggle('active-btn', dR); }
+        }
+    }
+
+    function useLight(s, on) {
+        initAudio();
+        const off = document.getElementById('office');
+        if(on) {
+            playSfx(500, 'triangle', 0.02);
+            off.style.background = s==='L' ? 'linear-gradient(to right, #444, #050505)' : s==='R' ? 'linear-gradient(to left, #444, #050505)' : 'radial-gradient(circle, #444, #050505)';
+        } else { off.style.background = "#050505"; }
+    }
+
+    function toggleMon(s) { initAudio(); mon = s; document.getElementById('monitor').style.display = s ? 'flex' : 'none'; if(s) updateCam(); }
+    function setCam(id) { initAudio(); curCam = id; document.getElementById('cam-name').innerText = "CAM " + id; updateCam(); playSfx(700, 'sine', 0.05); }
+
+    function updateCam() {
+        const content = document.getElementById('cam-content');
+        content.innerHTML = "";
+        if(curCam === '1A') {
+            if(bPos === 0) content.appendChild(createCircle("BONNIE", "#a0f"));
+            if(cPos === 0) content.appendChild(createCircle("CHICA", "#ff0"));
+            if(fPos === 0) content.appendChild(createCircle("FREDDY", "#8b4513"));
+            if(Math.random() > 0.7) content.appendChild(createCircle("GOLDEN", "#ffd700"));
+        }
+        if(curCam === '1C') {
+            if(fPos <= 3) content.appendChild(createCircle("FOXY", "#f00"));
+            else content.innerText = "ELE SAIU...";
+        }
+        if(curCam === '2B' && bPos >= 3) content.appendChild(createCircle("BONNIE", "#a0f"));
+        if(curCam === '4B' && cPos >= 3) content.appendChild(createCircle("CHICA", "#ff0"));
+    }
+
+    function createCircle(name, color) {
+        let div = document.createElement('div');
+        div.innerText = name;
+        div.style.cssText = `width:50px; height:50px; border-radius:50%; border:2px solid ${color}; color:${color}; display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:bold; background:#000; box-shadow: 0 0 10px ${color};`;
+        return div;
+    }
+
+    function jumpscare() { if(!active) return; active = false; document.getElementById('scare-screen').style.display = 'flex'; playSfx(50, 'sawtooth', 2); setTimeout(()=>location.reload(), 3000); }
+// --- ATALHOS DE TECLADO PARA A NOITE 5 ---
+window.addEventListener('keydown', (event) => {
+    if (!active) return; // Se o jogo acabou, as teclas param
+
+    const key = event.key.toLowerCase();
+
+    if (key === 'a') {
+        useDoor('L'); // Fecha/Abre a Esquerda
+    }
+    if (key === 'd') {
+        useDoor('R'); // Fecha/Abre a Direita
+    }
+    if (key === 'w') {
+        useDoor('M'); // Fecha/Abre a do Meio
+    }
+});
+</script>
+</body>
+</html>
