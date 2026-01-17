@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>FNaF Gemini - Night 3 Gold</title>
+    <style>
+        :root { --glow: #00ff00; --red: #ff0000; --blue: #0088ff; }
+        body { background: #000; color: #777; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        #game-box { width: 800px; height: 600px; position: relative; background: #050505; border: 4px solid #111; overflow: hidden; }
+
+        /* HUD SUPERIOR */
+        .hud { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; z-index: 1001; font-size: 16px; align-items: center; }
+        .sensor { position: absolute; top: 60px; font-size: 11px; z-index: 1000; padding: 4px; background: rgba(0,0,0,0.9); border: 1px solid #222; }
+        .danger { color: var(--red) !important; border-color: var(--red); animation: blink 0.3s infinite; }
+
+        /* PORTAS E CENÁRIO */
+        #door-mid { position: absolute; left: 150px; width: 500px; height: 0%; background: #111; top: 50px; transition: 0.5s; z-index: 100; border-bottom: 8px solid #333; }
+        .door-half { height: 210px !important; }
+        .door { width: 150px; height: 0%; background: #151515; position: absolute; top: 50px; transition: 0.3s; z-index: 100; border-bottom: 5px solid #000; }
+        .closed { height: 400px !important; }
+
+        /* PAINEL DE CONTROLE */
+        .panel { position: absolute; bottom: 0; width: 100%; height: 160px; background: #080808; border-top: 2px solid #1a1a1a; display: flex; justify-content: center; align-items: center; gap: 20px; z-index: 500; }
+        .btn-group { display: flex; flex-direction: column; gap: 8px; }
+        button { background: #111; color: #555; border: 1px solid #333; padding: 12px 20px; cursor: pointer; font-weight: bold; border-radius: 3px; font-size: 12px; }
+        .btn-mon { border: 2px solid var(--glow) !important; color: var(--glow) !important; padding: 25px 40px; font-size: 16px; }
+
+        /* MONITOR (CORREÇÃO DE BUG) */
+        #monitor { position: absolute; inset: 0; background: #000; z-index: 2000; display: none; flex-direction: column; }
+        .cam-screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #020202; border: 10px solid #111; }
+        .cam-btns { height: 130px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 10px; background: #080808; }
+
+        /* JUMPSCARE */
+        #scare { position: absolute; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; color: red; }
+
+        @keyframes blink { 0% { opacity: 0; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body onclick="initAudio()">
+
+<div id="game-box">
+    <div id="scare"><h1 style="font-size: 50px; letter-spacing: 10px;">SYSTEM ERROR</h1><p>CONNECTION TERMINATED</p></div>
+    
+    <div class="hud">
+        <span>🔋 <span id="p-val">100</span>%</span>
+        <span style="color:var(--red); font-weight: bold;">NOITE 3</span>
+        <span>🕒 <span id="h-val">12</span> AM</span>
+    </div>
+
+    <div id="s-l" class="sensor" style="left:10px;">SISTEMA OK</div>
+    <div id="s-r" class="sensor" style="right:10px;">SISTEMA OK</div>
+
+    <div id="door-mid"></div>
+    <div id="mid-hall" style="position:absolute; left:150px; width:500px; height:400px; top:50px; background:#020202;">
+        <div id="f-mid" style="display:none; text-align:center; margin-top:150px; color:red; font-size:24px;">[!] [!]</div>
+    </div>
+
+    <div id="wall-l" style="left:0; width:150px; height:400px; position:absolute; top:50px; background:#080808; z-index:10;">
+        <div id="e-l" style="display:none; margin:150px 0 0 50px; color:white; font-size:20px;">(O)</div>
+    </div>
+    <div id="wall-r" style="right:0; width:150px; height:400px; position:absolute; top:50px; background:#080808; z-index:10;">
+        <div id="e-r" style="display:none; margin:150px 0 0 50px; color:yellow; font-size:20px;">(O)</div>
+    </div>
+    
+    <div id="door-l" class="door" style="left:0"></div>
+    <div id="door-r" class="door" style="right:0"></div>
+
+    <div class="panel">
+        <div class="btn-group"><button onclick="useDoor('L')">PORTA L</button><button onmousedown="useLight('L',true)" onmouseup="useLight('L',false)">LUZ L</button></div>
+        <div class="btn-group"><button style="color:var(--blue)" onclick="useDoor('M')">MEIA PORTA</button><button style="color:#aa0" onmousedown="useLight('M',true)" onmouseup="useLight('M',false)">LUZ MEIO</button></div>
+        <button class="btn-mon" onclick="openMon()">MONITOR</button>
+        <div class="btn-group"><button onclick="useDoor('R')">PORTA R</button><button onmousedown="useLight('R',true)" onmouseup="useLight('R',false)">LUZ R</button></div>
+    </div>
+
+    <div id="monitor">
+        <div class="cam-screen"><h2 id="cam-n" style="color:var(--glow)">CAM 1A</h2><div id="cam-v" style="color:#0f0; font-size: 20px;"></div></div>
+        <div class="cam-btns">
+            <button onclick="setCam('1A')">1A: PALCO</button>
+            <button onclick="setCam('1C')">1C: FOXY</button>
+            <button onclick="setCam('2A')">2A: HALL L</button>
+            <button onclick="setCam('4B')">4B: HALL R</button>
+            <button onclick="closeMon()" style="background:#fff; color:#000; grid-column: span 4;">FECHAR MONITOR</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let energy = 100, hour = 0, active = true;
+    let freddyP = 0, bPos = 0, cPos = 0, foxyS = 0;
+    let doorM = false, doorL = false, doorR = false, monOpen = false, curCam = '1A';
+    let audio;
+
+    function initAudio() { if(!audio) audio = new (window.AudioContext || window.webkitAudioContext)(); }
+    function playSfx(f, t, d, g=0.05) { if(!audio) return; let o=audio.createOscillator(), v=audio.createGain(); o.type=t; o.frequency.value=f; v.gain.value=g; o.connect(v); v.connect(audio.destination); o.start(); o.stop(audio.currentTime+d); }
+
+    // RELÓGIO ACELERADO (45s POR HORA)
+    setInterval(() => {
+        if(!active) return;
+        hour++;
+        if(hour <= 6) document.getElementById('h-val').innerText = hour;
+        if(hour === 6) { active = false; alert("6 AM! VOCÊ VENCEU!"); location.reload(); }
+    }, 30000); 
+
+    // BATERIA E SENSORES
+    setInterval(() => {
+        if(!active) return;
+        let drain = 0.12 + (doorL?0.3:0) + (doorR?0.3:0) + (doorM?0.15:0) + (monOpen?0.2:0);
+        energy -= drain;
+        document.getElementById('p-val').innerText = Math.floor(energy);
+        if(energy <= 0) jumpscare();
+        
+        document.getElementById('s-l').innerText = bPos >= 4 ? "ALERTA: PERIGO" : "SISTEMA OK";
+        document.getElementById('s-l').className = bPos >= 4 ? "sensor danger" : "sensor";
+        document.getElementById('s-r').innerText = cPos >= 4 ? "ALERTA: PERIGO" : "SISTEMA OK";
+        document.getElementById('s-r').className = cPos >= 4 ? "sensor danger" : "sensor";
+    }, 1000);
+
+    // INTELIGÊNCIA ARTIFICIAL
+    setInterval(() => {
+        if(!active) return;
+        if(Math.random() > 0.5) freddyP++;
+        if(Math.random() > 0.45) bPos = Math.min(bPos + 1, 4);
+        if(Math.random() > 0.45) cPos = Math.min(cPos + 1, 4);
+        if(!monOpen || curCam !== '1C') foxyS++;
+
+        if(freddyP >= 5) { if(doorM) { freddyP = 0; playSfx(60, 'square', 0.5); } else { jumpscare(); } }
+        if(foxyS >= 8) { if(doorL || doorM) { foxyS = 0; playSfx(100, 'square', 0.4); } else { jumpscare(); } }
+        if(monOpen) renderCam();
+    }, 3500);
+
+    function useDoor(s) {
+        playSfx(150, 'sine', 0.2);
+        if(s === 'M') { doorM = !doorM; document.getElementById('door-mid').classList.toggle('door-half', doorM); }
+        else if(s === 'L') { doorL = !doorL; document.getElementById('door-l').classList.toggle('closed', doorL); if(doorL) bPos = 0; }
+        else { doorR = !doorR; document.getElementById('door-r').classList.toggle('closed', doorR); if(doorR) cPos = 0; }
+    }
+
+    function useLight(s, on) {
+        if(!active || monOpen) return;
+        if(s === 'M') {
+            document.getElementById('mid-hall').style.background = on ? "#1a1a10" : "#020202";
+            document.getElementById('f-mid').style.display = (on && freddyP >= 3) ? 'block' : 'none';
+        } else {
+            const side = s.toLowerCase();
+            document.getElementById('wall-'+side).style.background = on ? "#222" : "#080808";
+            document.getElementById('e-'+side).style.display = (on && ((s==='L'&&bPos>=4)||(s==='R'&&cPos>=4))) ? 'block' : 'none';
+        }
+    }
+
+    function renderCam() {
+        const v = document.getElementById('cam-v');
+        if(curCam === '1A') v.innerText = "STAGE: " + (bPos===0?"BONNIE ":"") + (cPos===0?"CHICA ":"") + (freddyP===0?"FREDDY":"VAZIO");
+        if(curCam === '1C') v.innerHTML = foxyS < 6 ? "COVA: OK" : "<span style='color:red'>FOXY FUGIU!</span>";
+        if(curCam === '2A') v.innerText = bPos >= 3 ? "MOVIMENTO HALL L" : "LIMPO";
+        if(curCam === '4B') v.innerText = cPos >= 3 ? "MOVIMENTO HALL R" : "LIMPO";
+    }
+
+    function openMon() { monOpen = true; document.getElementById('monitor').style.display = 'flex'; renderCam(); playSfx(400, 'sawtooth', 0.1); }
+    function closeMon() { monOpen = false; document.getElementById('monitor').style.display = 'none'; playSfx(200, 'sawtooth', 0.1); }
+    function setCam(id) { curCam = id; document.getElementById('cam-n').innerText = "CAM " + id; renderCam(); }
+    function jumpscare() { if(!active) return; active = false; document.getElementById('scare').style.display = 'flex'; playSfx(30, 'sawtooth', 2, 0.4); setTimeout(() => location.reload(), 3000); }
+</script>
+</body>
+</html>
