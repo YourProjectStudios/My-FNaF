@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>FNaF Gemini Edition - Site Version</title>
+    <style>
+        body { background: #000; color: white; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        #game-box { width: 800px; height: 600px; position: relative; border: 4px solid #333; background: #050505; box-shadow: 0 0 20px rgba(0,0,0,1) inset; }
+
+        /* --- TELAS --- */
+        .screen { width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: none; }
+        #office-view { display: block; background: #1a1a1a; }
+        #monitor-view { background: #000; z-index: 100; border: 10px solid #222; box-sizing: border-box; }
+        
+        /* --- ESCRITÓRIO E LUZES --- */
+        .door-frame { width: 100px; height: 100%; background: #000; position: absolute; top: 0; z-index: 10; }
+        #frame-l { left: 0; border-right: 2px solid #333; }
+        #frame-r { right: 0; border-left: 2px solid #333; }
+        .door-visual { width: 100%; height: 0%; background: #222; position: absolute; top: 0; transition: height 0.3s; border-bottom: 8px solid #444; }
+        .door-visual.closed { height: 100%; }
+        
+        #light-l-fx, #light-r-fx { position: absolute; width: 300px; height: 100%; opacity: 0; pointer-events: none; z-index: 5; }
+        #light-l-fx { left: 100px; background: linear-gradient(to right, rgba(255,255,200,0.15), transparent); }
+        #light-r-fx { right: 100px; background: linear-gradient(to left, rgba(255,255,200,0.15), transparent); }
+        .light-on { opacity: 1 !important; }
+
+        /* MONSTROS NA PORTA */
+        .monster-door { position: absolute; bottom: 120px; width: 90px; height: 180px; border-radius: 45px 45px 0 0; display: none; z-index: 6; filter: brightness(0.7); }
+        #bonnie-door { left: 105px; background: #3a1a4a; box-shadow: 0 0 20px #3a1a4a; }
+        #chica-door { right: 105px; background: #a18100; box-shadow: 0 0 20px #a18100; }
+
+        /* --- MONITOR --- */
+        #cam-display { width: 100%; height: 75%; position: relative; display: flex; justify-content: center; align-items: center; background: #0a0a0a; overflow: hidden; }
+        .cam-token { width: 70px; height: 70px; border-radius: 50%; border: 4px solid white; display: none; position: relative; }
+        .map-ui { height: 25%; display: flex; justify-content: center; align-items: center; gap: 15px; background: #111; }
+        .cam-btn { padding: 10px; color: #0f0; border: 1px solid #0f0; background: #000; cursor: pointer; }
+        .cam-btn.active { background: #0f0; color: #000; }
+
+        /* --- JUMPSCARE --- */
+        #jumpscare-view { background: #000; z-index: 1000; flex-direction: column; justify-content: center; align-items: center; }
+        .scary-face { width: 350px; height: 450px; border-radius: 150px 150px 30px 30px; position: relative; animation: vibrate 0.05s infinite; }
+        .scary-eye { width: 70px; height: 70px; background: white; border-radius: 50%; position: absolute; top: 100px; display: flex; justify-content: center; align-items: center; }
+        .pupil { width: 25px; height: 25px; background: black; border-radius: 50%; }
+        .scary-mouth { width: 220px; height: 80px; background: #000; position: absolute; bottom: 60px; left: 65px; border-radius: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 5px; }
+        .tooth { width: 25px; height: 35px; background: #eee; border-radius: 3px; }
+
+        @keyframes vibrate { 0% { transform: scale(1.15) translate(8px, 8px); } 50% { transform: scale(1.2) translate(-8px, -8px); } 100% { transform: scale(1.15); } }
+
+        /* --- TELA DE CRÉDITOS --- */
+        #credits-view { background: #000; z-index: 1500; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .credits-text { font-size: 24px; margin-bottom: 30px; }
+        .credits-text span { display: block; margin-top: 10px; font-size: 18px; color: #aaa; }
+
+        /* --- UI --- */
+        .office-controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-around; z-index: 50; }
+        .btn-col { display: flex; flex-direction: column; gap: 8px; }
+        button { padding: 12px; cursor: pointer; background: #222; color: #fff; border: 2px solid #555; font-family: inherit; }
+        .active-red { background: #800 !important; border-color: red !important; }
+        #hud { position: absolute; top: 15px; left: 15px; z-index: 200; font-size: 18px; text-shadow: 2px 2px #000; }
+    </style>
+</head>
+<body onclick="ativarAudio()">
+
+<div id="game-box">
+    <div id="hud">ENERGIA: <span id="p-val">100</span>% | HORA: <span id="h-val">12</span> AM</div>
+
+    <div id="office-view" class="screen" style="display: block;">
+        <div id="light-l-fx"></div><div id="light-r-fx"></div>
+        <div id="frame-l" class="door-frame"><div id="door-l" class="door-visual"></div></div>
+        <div id="frame-r" class="door-frame"><div id="door-r" class="door-visual"></div></div>
+        
+        <div id="bonnie-door" class="monster-door"></div>
+        <div id="chica-door" class="monster-door"></div>
+
+        <div class="office-controls">
+            <div class="btn-col">
+                <button onclick="toggleDoor('L')" id="btn-d-l">PORTA L</button>
+                <button onmousedown="toggleLight('L',true)" onmouseup="toggleLight('L',false)">LUZ L</button>
+            </div>
+            <button onclick="openMonitor()" style="width: 180px; background: #444;">ABRIR MONITOR</button>
+            <div class="btn-col">
+                <button onclick="toggleDoor('R')" id="btn-d-r">PORTA R</button>
+                <button onmousedown="toggleLight('R',true)" onmouseup="toggleLight('R',false)">LUZ R</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="monitor-view" class="screen">
+        <div id="cam-display">
+            <h2 id="cam-label" style="position:absolute; top:10px; left:20px; color:#0f0;">CAM 1A</h2>
+            <div id="token-b" class="cam-token" style="background:#4a2c5a"></div>
+            <div id="token-c" class="cam-token" style="background:#c9a300; margin-left: 15px;"></div>
+            <div id="static-msg" style="color:#222; font-size:30px;">SEM SINAL</div>
+        </div>
+        <div class="map-ui">
+            <button class="cam-btn active" id="c1A" onclick="changeCam('1A')">1A</button>
+            <button class="cam-btn" id="c1B" onclick="changeCam('1B')">1B</button>
+            <button class="cam-btn" id="c2A" onclick="changeCam('2A')">2A</button>
+            <button class="cam-btn" id="c4B" onclick="changeCam('4B')">4B</button>
+            <button onclick="closeMonitor()" style="background:white; color:black; font-weight:bold; margin-left:20px;">FECHAR</button>
+        </div>
+    </div>
+
+    <div id="jumpscare-view" class="screen">
+        <div id="j-face" class="scary-face">
+            <div class="scary-eye" style="left:50px;"><div class="pupil"></div></div>
+            <div class="scary-eye" style="right:50px;"><div class="pupil"></div></div>
+            <div class="scary-mouth">
+                <div class="tooth"></div><div class="tooth"></div><div class="tooth"></div><div class="tooth"></div>
+                <div class="tooth"></div><div class="tooth"></div><div class="tooth"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="credits-view" class="screen">
+        <div class="credits-text">
+            <h2 id="end-title" style="color:red; font-size: 40px;">FIM DA NOITE</h2>
+            Criação: <span>Bernarambola</span>
+            Programação: <span>Gemini</span>
+            Desenhos: <span>Gemini</span>
+        </div>
+        <button id="btn-action" onclick="acaoFinal()" style="background:#444; padding: 20px; font-weight: bold;"></button>
+    </div>
+</div>
+
+<script>
+    let power = 100, hour = 0, gameActive = true, doorL = false, doorR = false, curCam = '1A';
+    let bPos = 0, cPos = 0, vitoria = false;
+    let audioCtx;
+
+    function ativarAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function tocarGrito() {
+        if (!audioCtx) return;
+        const duration = 1.2;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // IA
+    setInterval(() => {
+        if(!gameActive) return;
+        if(Math.random() > 0.4 && bPos < 3) bPos++;
+        if(Math.random() > 0.4 && cPos < 3) cPos++;
+        if(bPos === 3 && doorL) bPos = 0;
+        if(cPos === 3 && doorR) cPos = 0;
+        updateCamTokens();
+    }, 5000);
+
+    // Energia
+    setInterval(() => {
+        if(!gameActive) return;
+        let usage = 0.2;
+        if(doorL) usage += 0.5; if(doorR) usage += 0.5;
+        power -= usage;
+        document.getElementById('p-val').innerText = Math.floor(power);
+        if(power <= 0) triggerJumpscare('#333');
+    }, 1000);
+
+    // Tempo
+    setInterval(() => {
+        if(!gameActive) return;
+        hour++;
+        if(hour === 6) winGame();
+        else document.getElementById('h-val').innerText = hour;
+    }, 30000);
+
+    function toggleDoor(side) {
+        ativarAudio();
+        if(side === 'L') { doorL = !doorL; document.getElementById('door-l').classList.toggle('closed', doorL); document.getElementById('btn-d-l').classList.toggle('active-red', doorL); }
+        else { doorR = !doorR; document.getElementById('door-r').classList.toggle('closed', doorR); document.getElementById('btn-d-r').classList.toggle('active-red', doorR); }
+    }
+
+    function toggleLight(side, on) {
+        ativarAudio();
+        if(side === 'L') { 
+            document.getElementById('light-l-fx').classList.toggle('light-on', on);
+            document.getElementById('bonnie-door').style.display = (on && bPos === 3) ? 'block' : 'none';
+        } else {
+            document.getElementById('light-r-fx').classList.toggle('light-on', on);
+            document.getElementById('chica-door').style.display = (on && cPos === 3) ? 'block' : 'none';
+        }
+    }
+
+    function openMonitor() {
+        ativarAudio();
+        document.getElementById('monitor-view').style.display = 'block';
+        document.getElementById('office-view').style.display = 'none';
+        updateCamTokens();
+    }
+
+    function closeMonitor() {
+        document.getElementById('monitor-view').style.display = 'none';
+        document.getElementById('office-view').style.display = 'block';
+        if(bPos === 3 && !doorL) triggerJumpscare('#3a1a4a');
+        if(cPos === 3 && !doorR) triggerJumpscare('#a18100');
+    }
+
+    function changeCam(id) {
+        curCam = id;
+        document.getElementById('cam-label').innerText = "CAM " + id;
+        document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('c'+id).classList.add('active');
+        updateCamTokens();
+    }
+
+    function updateCamTokens() {
+        const bt = document.getElementById('token-b'), ct = document.getElementById('token-c'), msg = document.getElementById('static-msg');
+        bt.style.display = 'none'; ct.style.display = 'none'; msg.style.display = 'block';
+        if(curCam === '1A') { if(bPos===0) bt.style.display='block'; if(cPos===0) ct.style.display='block'; }
+        if(curCam === '1B') { if(bPos===1) bt.style.display='block'; if(cPos===1) ct.style.display='block'; }
+        if(curCam === '2A') { if(bPos===2) bt.style.display='block'; }
+        if(curCam === '4B') { if(cPos===2) ct.style.display='block'; }
+        if(bt.style.display === 'block' || ct.style.display === 'block') msg.style.display = 'none';
+    }
+
+    function triggerJumpscare(color) {
+        gameActive = false;
+        vitoria = false;
+        tocarGrito();
+        document.getElementById('office-view').style.display = 'none';
+        document.getElementById('monitor-view').style.display = 'none';
+        document.getElementById('jumpscare-view').style.display = 'flex';
+        document.getElementById('j-face').style.background = color;
+        setTimeout(() => {
+            document.getElementById('jumpscare-view').style.display = 'none';
+            document.getElementById('credits-view').style.display = 'flex';
+            document.getElementById('end-title').innerText = "VOCÊ FOI PEGO!";
+            document.getElementById('end-title').style.color = "red";
+            document.getElementById('btn-action').innerText = "TENTAR NOVAMENTE";
+        }, 3000);
+    }
+
+    function winGame() {
+        gameActive = false;
+        vitoria = true;
+        document.getElementById('h-val').innerText = "6";
+        document.getElementById('office-view').style.display = 'none';
+        document.getElementById('monitor-view').style.display = 'none';
+        document.getElementById('credits-view').style.display = 'flex';
+        document.getElementById('end-title').innerText = "6 AM - SOBREVIVEU!";
+        document.getElementById('end-title').style.color = "#0f0";
+        document.getElementById('btn-action').innerText = "IR PARA NOITE 2";
+    }
+
+function acaoFinal() {
+        if(vitoria) {
+            // Abre a Noite 2 em uma nova aba para contornar o bloqueio do Google
+            window.open("https://sites.google.com/view/fnafgemini/noite-2", "_blank");
+        } else {
+            reiniciarJogo();
+        }
+    }
+
+    function reiniciarJogo() {
+        power = 100; hour = 0; bPos = 0; cPos = 0; gameActive = true; vitoria = false;
+        doorL = false; doorR = false; curCam = '1A';
+        document.getElementById('p-val').innerText = "100";
+        document.getElementById('h-val').innerText = "12";
+        document.getElementById('door-l').classList.remove('closed');
+        document.getElementById('door-r').classList.remove('closed');
+        document.getElementById('btn-d-l').classList.remove('active-red');
+        document.getElementById('btn-d-r').classList.remove('active-red');
+        document.getElementById('bonnie-door').style.display = 'none';
+        document.getElementById('chica-door').style.display = 'none';
+        document.getElementById('credits-view').style.display = 'none';
+        document.getElementById('office-view').style.display = 'block';
+    }
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>FNaF Gemini v2 - Estável</title>
+    <style>
+        body { background: #000; color: white; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        #game-box { width: 800px; height: 600px; position: relative; border: 4px solid #222; background: #0a0a0a; overflow: hidden; box-shadow: 0 0 20px rgba(0,255,0,0.1); }
+
+        /* --- HUD (Sempre no Topo) --- */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 40px; background: rgba(0,0,0,0.7); display: flex; justify-content: space-around; align-items: center; color: #ff0000; font-size: 18px; font-weight: bold; z-index: 3000; border-bottom: 2px solid #333; pointer-events: none; }
+
+        /* --- OFFICE E EFEITOS --- */
+        .light-effect { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 5; display: none; }
+        #l-light { background: linear-gradient(90deg, rgba(255,255,200,0.15), transparent 40%); }
+        #r-light { background: linear-gradient(-90deg, rgba(255,255,200,0.15), transparent 40%); }
+        #m-light { background: radial-gradient(circle, rgba(255,50,50,0.15), transparent 60%); }
+
+        /* --- ANIMATRÔNICOS NO ESCRITÓRIO --- */
+        .anim-css { position: absolute; bottom: 80px; width: 100px; height: 200px; display: none; z-index: 6; transition: 0.1s; }
+        .head-css { width: 80px; height: 90px; border-radius: 40px 40px 20px 20px; margin: 0 auto; position: relative; box-shadow: inset 0 -10px 15px #000; }
+        .eye-css { width: 12px; height: 12px; border-radius: 50%; position: absolute; top: 35px; }
+        
+        #bonnie-css .head-css { background: #3a1e5d; } #bonnie-css .eye-css { background: #ff00ff; box-shadow: 0 0 10px #f0f; left: 15px; } #bonnie-css .eye-css.r { left: auto; right: 15px; }
+        #chica-css .head-css { background: #a18100; } #chica-css .eye-css { background: #fffb00; box-shadow: 0 0 10px #ff0; left: 15px; } #chica-css .eye-css.r { left: auto; right: 15px; }
+        #foxy-css .head-css { background: #7a0000; } #foxy-css .eye-css { background: #f00; box-shadow: 0 0 15px #f00; left: 15px; } #foxy-css .eye-css.r { left: auto; right: 15px; }
+
+        /* --- PORTAS --- */
+        .door-css { width: 120px; height: 0%; background: #1a1a1a; position: absolute; top: 0; transition: height 0.4s ease-in; z-index: 100; border-bottom: 15px solid #444; border-left: 2px solid #333; border-right: 2px solid #333; }
+        .door-css.closed { height: 100%; }
+
+        /* --- MONITOR --- */
+        #monitor-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 2500; display: none; }
+        .cam-display { width: 100%; height: 80%; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background: #050505; }
+        .cam-controls { width: 100%; height: 20%; background: #111; display: flex; justify-content: center; align-items: center; gap: 8px; border-top: 2px solid #444; }
+        #static-fx { position: absolute; width: 100%; height: 100%; background: url('https://media.giphy.com/media/oEI9uWUqnW3Ze/giphy.gif'); opacity: 0.1; pointer-events: none; }
+
+        /* --- BOTÕES --- */
+        .office-btns { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 1000; }
+        button { padding: 12px 18px; cursor: pointer; background: #222; color: #fff; border: 2px solid #444; font-family: inherit; font-size: 12px; }
+        button:hover { background: #333; border-color: #666; }
+        button:active { background: #000; }
+
+        #jumpscare-screen { position: absolute; width: 100%; height: 100%; background: #000; z-index: 9999; display: none; justify-content: center; align-items: center; }
+    </style>
+</head>
+<body onclick="initAudio()">
+
+<div id="game-box">
+    <div id="hud">
+        <span>NOITE 2</span>
+        <span>BATERIA: <span id="p-val">100</span>%</span>
+        <span>HORA: <span id="h-val">12</span> AM</span>
+    </div>
+
+    <div id="office-div">
+        <div id="l-light" class="light-effect"></div>
+        <div id="r-light" class="light-effect"></div>
+        <div id="m-light" class="light-effect"></div>
+
+        <div id="door-l" class="door-css" style="left:0;"></div>
+        <div id="door-r" class="door-css" style="right:0;"></div>
+        
+        <div id="bonnie-css" class="anim-css" style="left:130px;"><div class="head-css"><div class="eye-css"></div><div class="eye-css r"></div></div></div>
+        <div id="chica-css" class="anim-css" style="right:130px;"><div class="head-css"><div class="eye-css"></div><div class="eye-css r"></div></div></div>
+        <div id="foxy-css" class="anim-css" style="left:360px;"><div class="head-css"><div class="eye-css"></div><div class="eye-css r"></div></div></div>
+
+        <div class="office-btns">
+            <button onclick="doorAction('L')">PORTA L</button>
+            <button onmousedown="lightAction('L',true)" onmouseup="lightAction('L',false)">LUZ L</button>
+            <button onmousedown="lightAction('M',true)" onmouseup="lightAction('M',false)" style="color:#ff4444">LUZ MEIO</button>
+            <button onclick="toggleMonitor(true)" style="background:#1a4a1a">ABRIR MONITOR</button>
+            <button onmousedown="lightAction('R',true)" onmouseup="lightAction('R',false)">LUZ R</button>
+            <button onclick="doorAction('R')">PORTA R</button>
+        </div>
+    </div>
+
+    <div id="monitor-view">
+        <div id="static-fx"></div>
+        <div class="cam-display">
+            <h2 id="cam-label" style="color:#0f0; position:absolute; top:20px; text-shadow: 0 0 5px #0f0;">CAM 1A</h2>
+            <div id="cam-visual" style="text-align:center;">
+                <p id="cam-status" style="font-size:14px; color:#555;">SINAL ESTÁVEL</p>
+                <div id="cam-entities"></div>
+            </div>
+        </div>
+        <div class="cam-controls">
+            <button onclick="changeCam('1A')">1A</button>
+            <button onclick="changeCam('1B')">1B</button>
+            <button onclick="changeCam('1C')">1C</button>
+            <button onclick="changeCam('2A')">2A</button>
+            <button onclick="changeCam('4B')">4B</button>
+            <button onclick="toggleMonitor(false)" style="background:#eee; color:#000">FECHAR</button>
+        </div>
+    </div>
+
+    <div id="jumpscare-screen">
+        <h1 id="js-text" style="color:red; font-size:120px;">X_X</h1>
+    </div>
+</div>
+
+<script>
+    let power = 100, hour = 0, gameActive = true, doorL = false, doorR = false, curCam = '1A';
+    let bPos = 0, cPos = 0, foxyProg = 0, audioCtx;
+
+    function initAudio() { if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    
+    function playSound(freq, type, dur, vol=0.1) {
+        if(!audioCtx) return;
+        let o = audioCtx.createOscillator(); let g = audioCtx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(vol, audioCtx.currentTime);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(); o.stop(audioCtx.currentTime + dur);
+    }
+
+    // RELÓGIO
+    const clockInt = setInterval(() => {
+        if(!gameActive) return;
+        hour++;
+        document.getElementById('h-val').innerText = (hour === 0) ? "12" : hour;
+        if(hour === 6) { gameActive = false; alert("6 AM - VOCÊ SOBREVIVEU!"); location.reload(); }
+    }, 45000);
+
+    // IA (Movimentação)
+    const aiInt = setInterval(() => {
+        if(!gameActive) return;
+        
+        // Bonnie e Chica avançam
+        if(Math.random() > 0.6) bPos = Math.min(bPos + 1, 3);
+        if(Math.random() > 0.6) cPos = Math.min(cPos + 1, 3);
+        
+        // Foxy avança se não estiver sendo vigiado
+        if(document.getElementById('monitor-view').style.display !== 'block') {
+            foxyProg += 4;
+        } else {
+            if(curCam === '1C') foxyProg = Math.max(0, foxyProg - 2); 
+        }
+
+        updateCamVisuals();
+
+        if(foxyProg >= 100) triggerJumpscare("FOXY");
+    }, 3000);
+
+    // BATERIA
+    const powerInt = setInterval(() => {
+        if(!gameActive) return;
+        let drain = 0.1;
+        if(doorL) drain += 0.4;
+        if(doorR) drain += 0.4;
+        if(document.getElementById('monitor-view').style.display === 'block') drain += 0.2;
+        
+        power -= drain;
+        document.getElementById('p-val').innerText = Math.max(0, Math.floor(power));
+        if(power <= 0) triggerJumpscare("ENERGIA");
+    }, 1000);
+
+    function doorAction(side) {
+        if(!gameActive) return;
+        playSound(120, 'square', 0.2);
+        if(side === 'L') { 
+            doorL = !doorL; 
+            document.getElementById('door-l').classList.toggle('closed', doorL);
+            if(doorL && bPos === 3) bPos = 0; 
+        } else { 
+            doorR = !doorR; 
+            document.getElementById('door-r').classList.toggle('closed', doorR);
+            if(doorR && cPos === 3) cPos = 0;
+        }
+    }
+
+    function lightAction(side, on) {
+        if(!gameActive) return;
+        document.getElementById(`${side.toLowerCase()}-light`).style.display = on ? 'block' : 'none';
+        
+        if(on) {
+            playSound(500, 'sine', 0.05);
+            if(side === 'L' && bPos === 3) document.getElementById('bonnie-css').style.display = 'block';
+            if(side === 'R' && cPos === 3) document.getElementById('chica-css').style.display = 'block';
+            if(side === 'M' && foxyProg > 50) { foxyProg = 20; playSound(100, 'sawtooth', 0.3); }
+        } else {
+            document.getElementById('bonnie-css').style.display = 'none';
+            document.getElementById('chica-css').style.display = 'none';
+        }
+    }
+
+    function toggleMonitor(show) {
+        if(!gameActive) return;
+        playSound(show ? 400 : 200, 'square', 0.1);
+        document.getElementById('monitor-view').style.display = show ? 'block' : 'none';
+        if(!show) {
+            if(bPos === 3 && !doorL) triggerJumpscare("BONNIE");
+            if(cPos === 3 && !doorR) triggerJumpscare("CHICA");
+            updateCamVisuals();
+        }
+    }
+
+    function changeCam(id) {
+        curCam = id;
+        playSound(600, 'sine', 0.05);
+        document.getElementById('cam-label').innerText = "CAM " + id;
+        updateCamVisuals();
+    }
+
+    function updateCamVisuals() {
+        let entities = document.getElementById('cam-entities');
+        entities.innerHTML = "";
+        
+        // Mostrar Bonnie na Cam 1B ou 2A
+        if(curCam === '1A' && bPos === 0) entities.innerHTML += "🟣";
+        if(curCam === '1B' && bPos === 1) entities.innerHTML += "🟣";
+        if(curCam === '2A' && bPos === 2) entities.innerHTML += "🟣";
+
+        // Mostrar Chica
+        if(curCam === '1A' && cPos === 0) entities.innerHTML += "🟡";
+        if(curCam === '1B' && cPos === 1) entities.innerHTML += "🟡";
+        if(curCam === '4B' && cPos === 2) entities.innerHTML += "🟡";
+
+        // Foxy na 1C
+        if(curCam === '1C') {
+            if(foxyProg < 30) entities.innerHTML = "⛺ (Cortinas Fechadas)";
+            else if(foxyProg < 70) entities.innerHTML = "🦊 (Espreitando)";
+            else entities.innerHTML = "💨 (ELE SAIU!)";
+        }
+    }
+
+    function triggerJumpscare(who) {
+        if(!gameActive) return;
+        gameActive = false;
+        playSound(50, 'sawtooth', 2, 0.5);
+        document.getElementById('js-text').innerText = who === "ENERGIA" ? "..." : "O_O";
+        document.getElementById('jumpscare-screen').style.display = 'flex';
+        setTimeout(() => { alert("FIM DE JOGO: " + who); location.reload(); }, 2000);
+    }
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>FNaF Gemini - Night 3 Gold</title>
+    <style>
+        :root { --glow: #00ff00; --red: #ff0000; --blue: #0088ff; }
+        body { background: #000; color: #777; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        #game-box { width: 800px; height: 600px; position: relative; background: #050505; border: 4px solid #111; overflow: hidden; }
+
+        /* HUD SUPERIOR */
+        .hud { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; z-index: 1001; font-size: 16px; align-items: center; }
+        .sensor { position: absolute; top: 60px; font-size: 11px; z-index: 1000; padding: 4px; background: rgba(0,0,0,0.9); border: 1px solid #222; }
+        .danger { color: var(--red) !important; border-color: var(--red); animation: blink 0.3s infinite; }
+
+        /* PORTAS E CENÁRIO */
+        #door-mid { position: absolute; left: 150px; width: 500px; height: 0%; background: #111; top: 50px; transition: 0.5s; z-index: 100; border-bottom: 8px solid #333; }
+        .door-half { height: 210px !important; }
+        .door { width: 150px; height: 0%; background: #151515; position: absolute; top: 50px; transition: 0.3s; z-index: 100; border-bottom: 5px solid #000; }
+        .closed { height: 400px !important; }
+
+        /* PAINEL DE CONTROLE */
+        .panel { position: absolute; bottom: 0; width: 100%; height: 160px; background: #080808; border-top: 2px solid #1a1a1a; display: flex; justify-content: center; align-items: center; gap: 20px; z-index: 500; }
+        .btn-group { display: flex; flex-direction: column; gap: 8px; }
+        button { background: #111; color: #555; border: 1px solid #333; padding: 12px 20px; cursor: pointer; font-weight: bold; border-radius: 3px; font-size: 12px; }
+        .btn-mon { border: 2px solid var(--glow) !important; color: var(--glow) !important; padding: 25px 40px; font-size: 16px; }
+
+        /* MONITOR (CORREÇÃO DE BUG) */
+        #monitor { position: absolute; inset: 0; background: #000; z-index: 2000; display: none; flex-direction: column; }
+        .cam-screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #020202; border: 10px solid #111; }
+        .cam-btns { height: 130px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 10px; background: #080808; }
+
+        /* JUMPSCARE */
+        #scare { position: absolute; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; color: red; }
+
+        @keyframes blink { 0% { opacity: 0; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body onclick="initAudio()">
+
+<div id="game-box">
+    <div id="scare"><h1 style="font-size: 50px; letter-spacing: 10px;">SYSTEM ERROR</h1><p>CONNECTION TERMINATED</p></div>
+    
+    <div class="hud">
+        <span>🔋 <span id="p-val">100</span>%</span>
+        <span style="color:var(--red); font-weight: bold;">NOITE 3</span>
+        <span>🕒 <span id="h-val">12</span> AM</span>
+    </div>
+
+    <div id="s-l" class="sensor" style="left:10px;">SISTEMA OK</div>
+    <div id="s-r" class="sensor" style="right:10px;">SISTEMA OK</div>
+
+    <div id="door-mid"></div>
+    <div id="mid-hall" style="position:absolute; left:150px; width:500px; height:400px; top:50px; background:#020202;">
+        <div id="f-mid" style="display:none; text-align:center; margin-top:150px; color:red; font-size:24px;">[!] [!]</div>
+    </div>
+
+    <div id="wall-l" style="left:0; width:150px; height:400px; position:absolute; top:50px; background:#080808; z-index:10;">
+        <div id="e-l" style="display:none; margin:150px 0 0 50px; color:white; font-size:20px;">(O)</div>
+    </div>
+    <div id="wall-r" style="right:0; width:150px; height:400px; position:absolute; top:50px; background:#080808; z-index:10;">
+        <div id="e-r" style="display:none; margin:150px 0 0 50px; color:yellow; font-size:20px;">(O)</div>
+    </div>
+    
+    <div id="door-l" class="door" style="left:0"></div>
+    <div id="door-r" class="door" style="right:0"></div>
+
+    <div class="panel">
+        <div class="btn-group"><button onclick="useDoor('L')">PORTA L</button><button onmousedown="useLight('L',true)" onmouseup="useLight('L',false)">LUZ L</button></div>
+        <div class="btn-group"><button style="color:var(--blue)" onclick="useDoor('M')">MEIA PORTA</button><button style="color:#aa0" onmousedown="useLight('M',true)" onmouseup="useLight('M',false)">LUZ MEIO</button></div>
+        <button class="btn-mon" onclick="openMon()">MONITOR</button>
+        <div class="btn-group"><button onclick="useDoor('R')">PORTA R</button><button onmousedown="useLight('R',true)" onmouseup="useLight('R',false)">LUZ R</button></div>
+    </div>
+
+    <div id="monitor">
+        <div class="cam-screen"><h2 id="cam-n" style="color:var(--glow)">CAM 1A</h2><div id="cam-v" style="color:#0f0; font-size: 20px;"></div></div>
+        <div class="cam-btns">
+            <button onclick="setCam('1A')">1A: PALCO</button>
+            <button onclick="setCam('1C')">1C: FOXY</button>
+            <button onclick="setCam('2A')">2A: HALL L</button>
+            <button onclick="setCam('4B')">4B: HALL R</button>
+            <button onclick="closeMon()" style="background:#fff; color:#000; grid-column: span 4;">FECHAR MONITOR</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let energy = 100, hour = 0, active = true;
+    let freddyP = 0, bPos = 0, cPos = 0, foxyS = 0;
+    let doorM = false, doorL = false, doorR = false, monOpen = false, curCam = '1A';
+    let audio;
+
+    function initAudio() { if(!audio) audio = new (window.AudioContext || window.webkitAudioContext)(); }
+    function playSfx(f, t, d, g=0.05) { if(!audio) return; let o=audio.createOscillator(), v=audio.createGain(); o.type=t; o.frequency.value=f; v.gain.value=g; o.connect(v); v.connect(audio.destination); o.start(); o.stop(audio.currentTime+d); }
+
+    // RELÓGIO ACELERADO (45s POR HORA)
+    setInterval(() => {
+        if(!active) return;
+        hour++;
+        if(hour <= 6) document.getElementById('h-val').innerText = hour;
+        if(hour === 6) { active = false; alert("6 AM! VOCÊ VENCEU!"); location.reload(); }
+    }, 30000); 
+
+    // BATERIA E SENSORES
+    setInterval(() => {
+        if(!active) return;
+        let drain = 0.12 + (doorL?0.3:0) + (doorR?0.3:0) + (doorM?0.15:0) + (monOpen?0.2:0);
+        energy -= drain;
+        document.getElementById('p-val').innerText = Math.floor(energy);
+        if(energy <= 0) jumpscare();
+        
+        document.getElementById('s-l').innerText = bPos >= 4 ? "ALERTA: PERIGO" : "SISTEMA OK";
+        document.getElementById('s-l').className = bPos >= 4 ? "sensor danger" : "sensor";
+        document.getElementById('s-r').innerText = cPos >= 4 ? "ALERTA: PERIGO" : "SISTEMA OK";
+        document.getElementById('s-r').className = cPos >= 4 ? "sensor danger" : "sensor";
+    }, 1000);
+
+    // INTELIGÊNCIA ARTIFICIAL
+    setInterval(() => {
+        if(!active) return;
+        if(Math.random() > 0.5) freddyP++;
+        if(Math.random() > 0.45) bPos = Math.min(bPos + 1, 4);
+        if(Math.random() > 0.45) cPos = Math.min(cPos + 1, 4);
+        if(!monOpen || curCam !== '1C') foxyS++;
+
+        if(freddyP >= 5) { if(doorM) { freddyP = 0; playSfx(60, 'square', 0.5); } else { jumpscare(); } }
+        if(foxyS >= 8) { if(doorL || doorM) { foxyS = 0; playSfx(100, 'square', 0.4); } else { jumpscare(); } }
+        if(monOpen) renderCam();
+    }, 3500);
+
+    function useDoor(s) {
+        playSfx(150, 'sine', 0.2);
+        if(s === 'M') { doorM = !doorM; document.getElementById('door-mid').classList.toggle('door-half', doorM); }
+        else if(s === 'L') { doorL = !doorL; document.getElementById('door-l').classList.toggle('closed', doorL); if(doorL) bPos = 0; }
+        else { doorR = !doorR; document.getElementById('door-r').classList.toggle('closed', doorR); if(doorR) cPos = 0; }
+    }
+
+    function useLight(s, on) {
+        if(!active || monOpen) return;
+        if(s === 'M') {
+            document.getElementById('mid-hall').style.background = on ? "#1a1a10" : "#020202";
+            document.getElementById('f-mid').style.display = (on && freddyP >= 3) ? 'block' : 'none';
+        } else {
+            const side = s.toLowerCase();
+            document.getElementById('wall-'+side).style.background = on ? "#222" : "#080808";
+            document.getElementById('e-'+side).style.display = (on && ((s==='L'&&bPos>=4)||(s==='R'&&cPos>=4))) ? 'block' : 'none';
+        }
+    }
+
+    function renderCam() {
+        const v = document.getElementById('cam-v');
+        if(curCam === '1A') v.innerText = "STAGE: " + (bPos===0?"BONNIE ":"") + (cPos===0?"CHICA ":"") + (freddyP===0?"FREDDY":"VAZIO");
+        if(curCam === '1C') v.innerHTML = foxyS < 6 ? "COVA: OK" : "<span style='color:red'>FOXY FUGIU!</span>";
+        if(curCam === '2A') v.innerText = bPos >= 3 ? "MOVIMENTO HALL L" : "LIMPO";
+        if(curCam === '4B') v.innerText = cPos >= 3 ? "MOVIMENTO HALL R" : "LIMPO";
+    }
+
+    function openMon() { monOpen = true; document.getElementById('monitor').style.display = 'flex'; renderCam(); playSfx(400, 'sawtooth', 0.1); }
+    function closeMon() { monOpen = false; document.getElementById('monitor').style.display = 'none'; playSfx(200, 'sawtooth', 0.1); }
+    function setCam(id) { curCam = id; document.getElementById('cam-n').innerText = "CAM " + id; renderCam(); }
+    function jumpscare() { if(!active) return; active = false; document.getElementById('scare').style.display = 'flex'; playSfx(30, 'sawtooth', 2, 0.4); setTimeout(() => location.reload(), 3000); }
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>FNaF Natal - FINAL FIX</title>
+    <style>
+        body { background: #000; color: #eee; font-family: monospace; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #game-box { width: 850px; height: 650px; position: relative; background: #050505; border: 2px solid #222; }
+        
+        .hud { position: absolute; top: 0; width: 100%; height: 50px; background: #000; display: flex; justify-content: space-around; align-items: center; z-index: 1001; border-bottom: 1px solid #333; }
+        .radar { position: absolute; top: 60px; font-size: 11px; padding: 5px 10px; border: 1px solid #333; background: rgba(0,0,0,0.8); z-index: 1000; transition: 0.3s; }
+
+        #office { position: absolute; top: 50px; width: 100%; height: 400px; background: #050505; transition: background 0.1s; }
+        
+        /* PORTAS */
+        .door { width: 150px; height: 0%; background: #151515; position: absolute; bottom: 0; transition: 0.3s; z-index: 100; border-top: 5px solid #444; }
+        #door-l { left: 0; } #door-r { right: 0; }
+        .closed { height: 100% !important; }
+        #door-mid { position: absolute; left: 150px; width: 550px; top: 0; height: 0px; background: #111; border-bottom: 8px solid #333; z-index: 95; transition: 0.4s; }
+
+        /* PAINEL */
+        .control-panel { position: absolute; bottom: 0; width: 100%; height: 200px; background: #0a0a0a; border-top: 2px solid #222; display: grid; grid-template-columns: 1fr 1.5fr 1fr; padding: 20px; box-sizing: border-box; gap: 15px; }
+        .btn-col { display: flex; flex-direction: column; gap: 8px; }
+        button { background: #1a1a1a; color: #777; border: 1px solid #333; padding: 12px; cursor: pointer; font-weight: bold; }
+        .active-btn { background: #333 !important; color: #0088ff !important; border-color: #0088ff !important; }
+        .btn-mon { height: 100%; border: 2px solid #0f0 !important; color: #0f0 !important; }
+
+        /* MONITOR */
+        #monitor { position: absolute; inset: 0; background: #000; z-index: 2000; display: none; flex-direction: column; }
+        .cam-view { flex: 1; display: flex; align-items: center; justify-content: center; border: 10px solid #111; position: relative; }
+        
+        #scare-screen { position: absolute; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; color: red; }
+    </style>
+</head>
+<body onclick="initAudio()">
+
+<div id="game-box">
+    <div id="scare-screen"><h1>CONEXÃO PERDIDA</h1></div>
+
+    <div class="hud">
+        <span>🔋 <span id="p-val">100</span>%</span>
+        <span style="color:gold;">NOITE DE NATAL</span>
+        <span>🕒 <span id="h-val">12</span> AM</span>
+    </div>
+
+    <div id="rad-l" class="radar" style="left:10px;">SISTEMA L: OK</div>
+    <div id="rad-r" class="radar" style="right:10px;">SISTEMA R: OK</div>
+
+    <div id="office">
+        <div id="door-l" class="door"></div>
+        <div id="door-mid"></div>
+        <div id="door-r" class="door"></div>
+    </div>
+
+    <div class="control-panel">
+        <div class="btn-col">
+            <button id="b-dl" onclick="useDoor('L')">PORTA ESQ</button>
+            <button onmousedown="useLight('L',true)" onmouseup="useLight('L',false)">LUZ ESQ</button>
+        </div>
+        <div class="btn-col">
+            <button class="btn-mon" onclick="toggleMon(true)">ABRIR MONITOR</button>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                <button id="b-dm" onclick="useDoor('M')">MEIA PORTA</button>
+                <button onmousedown="useLight('M',true)" onmouseup="useLight('M',false)">LUZ MEIO</button>
+            </div>
+        </div>
+        <div class="btn-col">
+            <button id="b-dr" onclick="useDoor('R')">PORTA DIR</button>
+            <button onmousedown="useLight('R',true)" onmouseup="useLight('R',false)">LUZ DIR</button>
+        </div>
+    </div>
+
+    <div id="monitor">
+        <div class="cam-view">
+            <h2 id="cam-name" style="position:absolute; top:20px; left:20px; color:#0f0;">CAM 1A</h2>
+            <div id="cam-content" style="display:flex; gap:15px;"></div>
+        </div>
+        <div style="height:100px; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:10px;">
+            <button onclick="setCam('1A')">PALCO</button>
+            <button onclick="setCam('1C')">COVA</button>
+            <button onclick="setCam('2B')">HALL L</button>
+            <button onclick="setCam('4B')">HALL R</button>
+            <button onclick="toggleMon(false)" style="grid-column: span 4; background:#fff; color:#000;">FECHAR</button>
+        </div>
+    </div>
+</div>
+<script>
+    let energy = 100, hour = 0, active = true, curCam = '1A';
+    let bPos = 0, cPos = 0, fPos = 0;
+    let dL=false, dR=false, dM=false, mon=false, audio;
+
+    // Função para ligar o áudio (Essencial!)
+    function initAudio() { 
+        if(!audio) {
+            audio = new (window.AudioContext || window.webkitAudioContext)();
+            playSfx(440, 'sine', 0.1); // Beep de teste para confirmar que ligou
+        }
+    }
+
+    function playSfx(f, t, d) { 
+        if(!audio) return; 
+        let o=audio.createOscillator(), v=audio.createGain(); 
+        o.type=t; 
+        o.frequency.value=f; 
+        v.gain.value=0.05; // Aumentei um pouco o volume
+        o.connect(v); 
+        v.connect(audio.destination); 
+        o.start(); 
+        o.stop(audio.currentTime+d); 
+    }
+
+    // Loop de Tempo e Energia (Mantive igual)
+    setInterval(() => {
+        if(!active) return;
+        hour++;
+        if(hour <= 6) document.getElementById('h-val').innerText = hour;
+        if(hour === 6) { active = false; alert("6 AM! FELIZ NATAL!"); location.reload(); }
+    }, 30000);
+
+    setInterval(() => {
+        if(!active) return;
+        energy -= (0.15 + (dL?0.4:0) + (dR?0.4:0) + (dM?0.2:0) + (mon?0.3:0));
+        document.getElementById('p-val').innerText = Math.floor(energy);
+        if(energy <= 0) jumpscare();
+        
+        const rl = document.getElementById('rad-l'), rr = document.getElementById('rad-r');
+        rl.innerText = bPos >= 4 ? "ALERTA L: INVASÃO" : "SISTEMA L: OK";
+        rl.style.color = bPos >= 4 ? "red" : "#0f0";
+        rr.innerText = (cPos >= 4 || fPos >= 4) ? "ALERTA R: INVASÃO" : "SISTEMA R: OK";
+        rr.style.color = (cPos >= 4 || fPos >= 4) ? "red" : "#0f0";
+    }, 1000);
+
+    // Movimento e IA
+    setInterval(() => {
+        if(!active) return;
+        if(Math.random() > 0.4) bPos++; 
+        if(Math.random() > 0.4) cPos++; 
+        if(Math.random() > 0.5) fPos++; // Freddy/Foxy
+        
+        if(bPos >= 5) { if(dL) bPos = 0; else jumpscare(); }
+        if(cPos >= 5) { if(dR) cPos = 0; else jumpscare(); }
+        if(fPos >= 7) { if(dM) fPos = 0; else jumpscare(); }
+        if(mon) updateCam();
+    }, 2500);
+
+    function useDoor(s) {
+        initAudio(); // Ativa o som no primeiro clique
+        playSfx(150, 'sine', 0.1);
+        if(s === 'M') {
+            dM = !dM;
+            document.getElementById('door-mid').style.height = dM ? "180px" : "0px";
+            document.getElementById('b-dm').classList.toggle('active-btn', dM);
+        } else {
+            if(s === 'L') { dL = !dL; document.getElementById('door-l').classList.toggle('closed', dL); document.getElementById('b-dl').classList.toggle('active-btn', dL); }
+            if(s === 'R') { dR = !dR; document.getElementById('door-r').classList.toggle('closed', dR); document.getElementById('b-dr').classList.toggle('active-btn', dR); }
+        }
+    }
+
+    function useLight(s, on) {
+        initAudio();
+        const off = document.getElementById('office');
+        if(on) {
+            playSfx(600, 'triangle', 0.02);
+            off.style.background = s==='L' ? 'linear-gradient(to right, #444, #050505)' : s==='R' ? 'linear-gradient(to left, #444, #050505)' : 'radial-gradient(circle, #444, #050505)';
+        } else {
+            off.style.background = "#050505";
+        }
+    }
+
+    function toggleMon(s) { initAudio(); mon = s; document.getElementById('monitor').style.display = s ? 'flex' : 'none'; if(s) updateCam(); }
+    function setCam(id) { initAudio(); curCam = id; document.getElementById('cam-name').innerText = "CAM " + id; updateCam(); playSfx(800, 'sine', 0.05); }
+
+    function updateCam() {
+        const content = document.getElementById('cam-content');
+        content.innerHTML = "";
+        if(curCam === '1A') {
+            if(bPos === 0) content.appendChild(createCircle("BONNIE", "#a0f"));
+            if(cPos === 0) content.appendChild(createCircle("CHICA", "#ff0"));
+            if(fPos === 0) content.appendChild(createCircle("FREDDY", "#8b4513"));
+        }
+        // AGORA É O FOXY NA COVA (1C)
+        if(curCam === '1C') {
+            if(fPos <= 3) content.appendChild(createCircle("FOXY", "#f00"));
+            else content.innerText = "A COVA ESTÁ VAZIA...";
+        }
+        if(curCam === '2B' && bPos >= 3) content.appendChild(createCircle("BONNIE", "#a0f"));
+        if(curCam === '4B' && cPos >= 3) content.appendChild(createCircle("CHICA", "#ff0"));
+    }
+
+    function createCircle(name, color) {
+        let div = document.createElement('div');
+        div.innerText = name;
+        div.style.cssText = `width:50px; height:50px; border-radius:50%; border:2px solid ${color}; color:${color}; display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:bold; background:#000; box-shadow: 0 0 10px ${color};`;
+        return div;
+    }
+
+    function jumpscare() { 
+        if(!active) return; 
+        active = false; 
+        document.getElementById('scare-screen').style.display = 'flex'; 
+        playSfx(50, 'sawtooth', 1.5); // Som alto de jumpscare
+        setTimeout(()=>location.reload(), 3000); 
+    }
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>FNaF Natal - NOITE 5 (HARDCORE)</title>
+    <style>
+        body { background: #000; color: #eee; font-family: monospace; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #game-box { width: 850px; height: 650px; position: relative; background: #050505; border: 2px solid #300; box-shadow: 0 0 20px rgba(255,0,0,0.1); }
+        
+        .hud { position: absolute; top: 0; width: 100%; height: 50px; background: #000; display: flex; justify-content: space-around; align-items: center; z-index: 1001; border-bottom: 1px solid #400; }
+        .radar { position: absolute; top: 60px; font-size: 11px; padding: 5px 10px; border: 1px solid #333; background: rgba(0,0,0,0.8); z-index: 1000; }
+
+        #office { position: absolute; top: 50px; width: 100%; height: 400px; background: #050505; transition: background 0.05s; }
+        
+        .door { width: 150px; height: 0%; background: #151515; position: absolute; bottom: 0; transition: 0.2s; z-index: 100; border-top: 5px solid #444; }
+        #door-l { left: 0; } #door-r { right: 0; }
+        .closed { height: 100% !important; }
+        #door-mid { position: absolute; left: 150px; width: 550px; top: 0; height: 0px; background: #111; border-bottom: 8px solid #333; z-index: 95; transition: 0.3s; }
+
+        .control-panel { position: absolute; bottom: 0; width: 100%; height: 200px; background: #0a0a0a; border-top: 2px solid #222; display: grid; grid-template-columns: 1fr 1.5fr 1fr; padding: 20px; box-sizing: border-box; gap: 15px; }
+        .btn-col { display: flex; flex-direction: column; gap: 8px; }
+        button { background: #1a1a1a; color: #777; border: 1px solid #333; padding: 12px; cursor: pointer; font-weight: bold; }
+        .active-btn { background: #333 !important; color: #ff0000 !important; border-color: #ff0000 !important; }
+        .btn-mon { height: 100%; border: 2px solid #0f0 !important; color: #0f0 !important; }
+
+        #monitor { position: absolute; inset: 0; background: #000; z-index: 2000; display: none; flex-direction: column; }
+        .cam-view { flex: 1; display: flex; align-items: center; justify-content: center; border: 10px solid #111; position: relative; }
+        
+        #scare-screen { position: absolute; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; color: red; }
+    </style>
+</head>
+<body onclick="initAudio()">
+
+<div id="game-box">
+    <div id="scare-screen"><h1>SISTEMA CRÍTICO - ERRO FATAL</h1></div>
+
+    <div class="hud">
+        <span>🔋 <span id="p-val">100</span>%</span>
+        <span style="color:red; font-weight:bold; animation: blink 1s infinite;">NOITE 5: FINAL</span>
+        <span>🕒 <span id="h-val">12</span> AM</span>
+    </div>
+
+    <div id="rad-l" class="radar" style="left:10px;">SISTEMA L: OK</div>
+    <div id="rad-r" class="radar" style="right:10px;">SISTEMA R: OK</div>
+
+    <div id="office">
+        <div id="door-l" class="door"></div>
+        <div id="door-mid"></div>
+        <div id="door-r" class="door"></div>
+    </div>
+
+    <div class="control-panel">
+        <div class="btn-col">
+            <button id="b-dl" onclick="useDoor('L')">PORTA ESQ</button>
+            <button onmousedown="useLight('L',true)" onmouseup="useLight('L',false)">LUZ ESQ</button>
+        </div>
+        <div class="btn-col">
+            <button class="btn-mon" onclick="toggleMon(true)">ABRIR MONITOR</button>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                <button id="b-dm" onclick="useDoor('M')">MEIA PORTA</button>
+                <button onmousedown="useLight('M',true)" onmouseup="useLight('M',false)">LUZ MEIO</button>
+            </div>
+        </div>
+        <div class="btn-col">
+            <button id="b-dr" onclick="useDoor('R')">PORTA DIR</button>
+            <button onmousedown="useLight('R',true)" onmouseup="useLight('R',false)">LUZ DIR</button>
+        </div>
+    </div>
+
+    <div id="monitor">
+        <div class="cam-view">
+            <h2 id="cam-name" style="position:absolute; top:20px; left:20px; color:#0f0;">CAM 1A</h2>
+            <div id="cam-content" style="display:flex; gap:15px;"></div>
+        </div>
+        <div style="height:100px; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:10px;">
+            <button onclick="setCam('1A')">PALCO</button>
+            <button onclick="setCam('1C')">COVA</button>
+            <button onclick="setCam('2B')">HALL L</button>
+            <button onclick="setCam('4B')">HALL R</button>
+            <button onclick="toggleMon(false)" style="grid-column: span 4; background:#fff; color:#000;">FECHAR</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let energy = 100, hour = 0, active = true, curCam = '1A';
+    let bPos = 0, cPos = 0, fPos = 0;
+    let dL=false, dR=false, dM=false, mon=false, audio;
+
+    function initAudio() { if(!audio) { audio = new (window.AudioContext || window.webkitAudioContext)(); } }
+    function playSfx(f, t, d) { if(!audio) return; let o=audio.createOscillator(), v=audio.createGain(); o.type=t; o.frequency.value=f; v.gain.value=0.03; o.connect(v); v.connect(audio.destination); o.start(); o.stop(audio.currentTime+d); }
+
+    // Loop de Tempo
+    setInterval(() => {
+        if(!active) return;
+        hour++;
+        if(hour <= 6) document.getElementById('h-val').innerText = hour;
+        if(hour === 6) { active = false; alert("VOCÊ SOBREVIVEU À NOITE FINAL!"); location.reload(); }
+    }, 25000); // Noite 5 é um pouco mais rápida!
+
+    // Loop de Energia e Radar
+    setInterval(() => {
+        if(!active) return;
+        // Gasto de energia Hardcore
+        energy -= (0.22 + (dL?0.5:0) + (dR?0.5:0) + (dM?0.3:0) + (mon?0.4:0));
+        document.getElementById('p-val').innerText = Math.floor(energy);
+        if(energy <= 0) jumpscare();
+
+        const rl = document.getElementById('rad-l'), rr = document.getElementById('rad-r');
+        rl.innerText = bPos >= 4 ? "ALERTA L: INVASÃO" : "SISTEMA L: OK";
+        rl.style.color = bPos >= 4 ? "red" : "#0f0";
+        rr.innerText = (cPos >= 4 || fPos >= 4) ? "ALERTA R: INVASÃO" : "SISTEMA R: OK";
+        rr.style.color = (cPos >= 4 || fPos >= 4) ? "red" : "#0f0";
+    }, 1000);
+
+    // IA AGRESSIVA NOITE 5
+    setInterval(() => {
+        if(!active) return;
+        if(Math.random() > 0.25) bPos++; 
+        if(Math.random() > 0.25) cPos++; 
+        if(Math.random() > 0.35) fPos++; 
+        
+        if(audio && Math.random() > 0.8) playSfx(40, 'sawtooth', 0.1); // Sons de passos
+
+        if(bPos >= 5) { if(dL) { bPos = 0; playSfx(80, 'sine', 0.2); } else jumpscare(); }
+        if(cPos >= 5) { if(dR) { cPos = 0; playSfx(80, 'sine', 0.2); } else jumpscare(); }
+        if(fPos >= 7) { if(dM) { fPos = 0; playSfx(80, 'sine', 0.2); } else jumpscare(); }
+        if(mon) updateCam();
+    }, 1800); // Velocidade máxima!
+
+    function useDoor(s) {
+        initAudio(); playSfx(150, 'sine', 0.1);
+        if(s === 'M') {
+            dM = !dM;
+            document.getElementById('door-mid').style.height = dM ? "180px" : "0px";
+            document.getElementById('b-dm').classList.toggle('active-btn', dM);
+        } else {
+            if(s === 'L') { dL = !dL; document.getElementById('door-l').classList.toggle('closed', dL); document.getElementById('b-dl').classList.toggle('active-btn', dL); }
+            if(s === 'R') { dR = !dR; document.getElementById('door-r').classList.toggle('closed', dR); document.getElementById('b-dr').classList.toggle('active-btn', dR); }
+        }
+    }
+
+    function useLight(s, on) {
+        initAudio();
+        const off = document.getElementById('office');
+        if(on) {
+            playSfx(500, 'triangle', 0.02);
+            off.style.background = s==='L' ? 'linear-gradient(to right, #444, #050505)' : s==='R' ? 'linear-gradient(to left, #444, #050505)' : 'radial-gradient(circle, #444, #050505)';
+        } else { off.style.background = "#050505"; }
+    }
+
+    function toggleMon(s) { initAudio(); mon = s; document.getElementById('monitor').style.display = s ? 'flex' : 'none'; if(s) updateCam(); }
+    function setCam(id) { initAudio(); curCam = id; document.getElementById('cam-name').innerText = "CAM " + id; updateCam(); playSfx(700, 'sine', 0.05); }
+
+    function updateCam() {
+        const content = document.getElementById('cam-content');
+        content.innerHTML = "";
+        if(curCam === '1A') {
+            if(bPos === 0) content.appendChild(createCircle("BONNIE", "#a0f"));
+            if(cPos === 0) content.appendChild(createCircle("CHICA", "#ff0"));
+            if(fPos === 0) content.appendChild(createCircle("FREDDY", "#8b4513"));
+            if(Math.random() > 0.7) content.appendChild(createCircle("GOLDEN", "#ffd700"));
+        }
+        if(curCam === '1C') {
+            if(fPos <= 3) content.appendChild(createCircle("FOXY", "#f00"));
+            else content.innerText = "ELE SAIU...";
+        }
+        if(curCam === '2B' && bPos >= 3) content.appendChild(createCircle("BONNIE", "#a0f"));
+        if(curCam === '4B' && cPos >= 3) content.appendChild(createCircle("CHICA", "#ff0"));
+    }
+
+    function createCircle(name, color) {
+        let div = document.createElement('div');
+        div.innerText = name;
+        div.style.cssText = `width:50px; height:50px; border-radius:50%; border:2px solid ${color}; color:${color}; display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:bold; background:#000; box-shadow: 0 0 10px ${color};`;
+        return div;
+    }
+
+    function jumpscare() { if(!active) return; active = false; document.getElementById('scare-screen').style.display = 'flex'; playSfx(50, 'sawtooth', 2); setTimeout(()=>location.reload(), 3000); }
+// --- ATALHOS DE TECLADO PARA A NOITE 5 ---
+window.addEventListener('keydown', (event) => {
+    if (!active) return; // Se o jogo acabou, as teclas param
+
+    const key = event.key.toLowerCase();
+
+    if (key === 'a') {
+        useDoor('L'); // Fecha/Abre a Esquerda
+    }
+    if (key === 'd') {
+        useDoor('R'); // Fecha/Abre a Direita
+    }
+    if (key === 'w') {
+        useDoor('M'); // Fecha/Abre a do Meio
+    }
+});
+</script>
+</body>
+</html>
