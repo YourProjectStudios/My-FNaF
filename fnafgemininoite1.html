@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>FNaF Gemini Edition - Site Version</title>
+    <style>
+        body { background: #000; color: white; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        #game-box { width: 800px; height: 600px; position: relative; border: 4px solid #333; background: #050505; box-shadow: 0 0 20px rgba(0,0,0,1) inset; }
+
+        /* --- TELAS --- */
+        .screen { width: 100%; height: 100%; position: absolute; top: 0; left: 0; display: none; }
+        #office-view { display: block; background: #1a1a1a; }
+        #monitor-view { background: #000; z-index: 100; border: 10px solid #222; box-sizing: border-box; }
+        
+        /* --- ESCRITÓRIO E LUZES --- */
+        .door-frame { width: 100px; height: 100%; background: #000; position: absolute; top: 0; z-index: 10; }
+        #frame-l { left: 0; border-right: 2px solid #333; }
+        #frame-r { right: 0; border-left: 2px solid #333; }
+        .door-visual { width: 100%; height: 0%; background: #222; position: absolute; top: 0; transition: height 0.3s; border-bottom: 8px solid #444; }
+        .door-visual.closed { height: 100%; }
+        
+        #light-l-fx, #light-r-fx { position: absolute; width: 300px; height: 100%; opacity: 0; pointer-events: none; z-index: 5; }
+        #light-l-fx { left: 100px; background: linear-gradient(to right, rgba(255,255,200,0.15), transparent); }
+        #light-r-fx { right: 100px; background: linear-gradient(to left, rgba(255,255,200,0.15), transparent); }
+        .light-on { opacity: 1 !important; }
+
+        /* MONSTROS NA PORTA */
+        .monster-door { position: absolute; bottom: 120px; width: 90px; height: 180px; border-radius: 45px 45px 0 0; display: none; z-index: 6; filter: brightness(0.7); }
+        #bonnie-door { left: 105px; background: #3a1a4a; box-shadow: 0 0 20px #3a1a4a; }
+        #chica-door { right: 105px; background: #a18100; box-shadow: 0 0 20px #a18100; }
+
+        /* --- MONITOR --- */
+        #cam-display { width: 100%; height: 75%; position: relative; display: flex; justify-content: center; align-items: center; background: #0a0a0a; overflow: hidden; }
+        .cam-token { width: 70px; height: 70px; border-radius: 50%; border: 4px solid white; display: none; position: relative; }
+        .map-ui { height: 25%; display: flex; justify-content: center; align-items: center; gap: 15px; background: #111; }
+        .cam-btn { padding: 10px; color: #0f0; border: 1px solid #0f0; background: #000; cursor: pointer; }
+        .cam-btn.active { background: #0f0; color: #000; }
+
+        /* --- JUMPSCARE --- */
+        #jumpscare-view { background: #000; z-index: 1000; flex-direction: column; justify-content: center; align-items: center; }
+        .scary-face { width: 350px; height: 450px; border-radius: 150px 150px 30px 30px; position: relative; animation: vibrate 0.05s infinite; }
+        .scary-eye { width: 70px; height: 70px; background: white; border-radius: 50%; position: absolute; top: 100px; display: flex; justify-content: center; align-items: center; }
+        .pupil { width: 25px; height: 25px; background: black; border-radius: 50%; }
+        .scary-mouth { width: 220px; height: 80px; background: #000; position: absolute; bottom: 60px; left: 65px; border-radius: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 5px; }
+        .tooth { width: 25px; height: 35px; background: #eee; border-radius: 3px; }
+
+        @keyframes vibrate { 0% { transform: scale(1.15) translate(8px, 8px); } 50% { transform: scale(1.2) translate(-8px, -8px); } 100% { transform: scale(1.15); } }
+
+        /* --- TELA DE CRÉDITOS --- */
+        #credits-view { background: #000; z-index: 1500; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .credits-text { font-size: 24px; margin-bottom: 30px; }
+        .credits-text span { display: block; margin-top: 10px; font-size: 18px; color: #aaa; }
+
+        /* --- UI --- */
+        .office-controls { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-around; z-index: 50; }
+        .btn-col { display: flex; flex-direction: column; gap: 8px; }
+        button { padding: 12px; cursor: pointer; background: #222; color: #fff; border: 2px solid #555; font-family: inherit; }
+        .active-red { background: #800 !important; border-color: red !important; }
+        #hud { position: absolute; top: 15px; left: 15px; z-index: 200; font-size: 18px; text-shadow: 2px 2px #000; }
+    </style>
+</head>
+<body onclick="ativarAudio()">
+
+<div id="game-box">
+    <div id="hud">ENERGIA: <span id="p-val">100</span>% | HORA: <span id="h-val">12</span> AM</div>
+
+    <div id="office-view" class="screen" style="display: block;">
+        <div id="light-l-fx"></div><div id="light-r-fx"></div>
+        <div id="frame-l" class="door-frame"><div id="door-l" class="door-visual"></div></div>
+        <div id="frame-r" class="door-frame"><div id="door-r" class="door-visual"></div></div>
+        
+        <div id="bonnie-door" class="monster-door"></div>
+        <div id="chica-door" class="monster-door"></div>
+
+        <div class="office-controls">
+            <div class="btn-col">
+                <button onclick="toggleDoor('L')" id="btn-d-l">PORTA L</button>
+                <button onmousedown="toggleLight('L',true)" onmouseup="toggleLight('L',false)">LUZ L</button>
+            </div>
+            <button onclick="openMonitor()" style="width: 180px; background: #444;">ABRIR MONITOR</button>
+            <div class="btn-col">
+                <button onclick="toggleDoor('R')" id="btn-d-r">PORTA R</button>
+                <button onmousedown="toggleLight('R',true)" onmouseup="toggleLight('R',false)">LUZ R</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="monitor-view" class="screen">
+        <div id="cam-display">
+            <h2 id="cam-label" style="position:absolute; top:10px; left:20px; color:#0f0;">CAM 1A</h2>
+            <div id="token-b" class="cam-token" style="background:#4a2c5a"></div>
+            <div id="token-c" class="cam-token" style="background:#c9a300; margin-left: 15px;"></div>
+            <div id="static-msg" style="color:#222; font-size:30px;">SEM SINAL</div>
+        </div>
+        <div class="map-ui">
+            <button class="cam-btn active" id="c1A" onclick="changeCam('1A')">1A</button>
+            <button class="cam-btn" id="c1B" onclick="changeCam('1B')">1B</button>
+            <button class="cam-btn" id="c2A" onclick="changeCam('2A')">2A</button>
+            <button class="cam-btn" id="c4B" onclick="changeCam('4B')">4B</button>
+            <button onclick="closeMonitor()" style="background:white; color:black; font-weight:bold; margin-left:20px;">FECHAR</button>
+        </div>
+    </div>
+
+    <div id="jumpscare-view" class="screen">
+        <div id="j-face" class="scary-face">
+            <div class="scary-eye" style="left:50px;"><div class="pupil"></div></div>
+            <div class="scary-eye" style="right:50px;"><div class="pupil"></div></div>
+            <div class="scary-mouth">
+                <div class="tooth"></div><div class="tooth"></div><div class="tooth"></div><div class="tooth"></div>
+                <div class="tooth"></div><div class="tooth"></div><div class="tooth"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="credits-view" class="screen">
+        <div class="credits-text">
+            <h2 id="end-title" style="color:red; font-size: 40px;">FIM DA NOITE</h2>
+            Criação: <span>Bernarambola</span>
+            Programação: <span>Gemini</span>
+            Desenhos: <span>Gemini</span>
+        </div>
+        <button id="btn-action" onclick="acaoFinal()" style="background:#444; padding: 20px; font-weight: bold;"></button>
+    </div>
+</div>
+
+<script>
+    let power = 100, hour = 0, gameActive = true, doorL = false, doorR = false, curCam = '1A';
+    let bPos = 0, cPos = 0, vitoria = false;
+    let audioCtx;
+
+    function ativarAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function tocarGrito() {
+        if (!audioCtx) return;
+        const duration = 1.2;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // IA
+    setInterval(() => {
+        if(!gameActive) return;
+        if(Math.random() > 0.4 && bPos < 3) bPos++;
+        if(Math.random() > 0.4 && cPos < 3) cPos++;
+        if(bPos === 3 && doorL) bPos = 0;
+        if(cPos === 3 && doorR) cPos = 0;
+        updateCamTokens();
+    }, 5000);
+
+    // Energia
+    setInterval(() => {
+        if(!gameActive) return;
+        let usage = 0.2;
+        if(doorL) usage += 0.5; if(doorR) usage += 0.5;
+        power -= usage;
+        document.getElementById('p-val').innerText = Math.floor(power);
+        if(power <= 0) triggerJumpscare('#333');
+    }, 1000);
+
+    // Tempo
+    setInterval(() => {
+        if(!gameActive) return;
+        hour++;
+        if(hour === 6) winGame();
+        else document.getElementById('h-val').innerText = hour;
+    }, 30000);
+
+    function toggleDoor(side) {
+        ativarAudio();
+        if(side === 'L') { doorL = !doorL; document.getElementById('door-l').classList.toggle('closed', doorL); document.getElementById('btn-d-l').classList.toggle('active-red', doorL); }
+        else { doorR = !doorR; document.getElementById('door-r').classList.toggle('closed', doorR); document.getElementById('btn-d-r').classList.toggle('active-red', doorR); }
+    }
+
+    function toggleLight(side, on) {
+        ativarAudio();
+        if(side === 'L') { 
+            document.getElementById('light-l-fx').classList.toggle('light-on', on);
+            document.getElementById('bonnie-door').style.display = (on && bPos === 3) ? 'block' : 'none';
+        } else {
+            document.getElementById('light-r-fx').classList.toggle('light-on', on);
+            document.getElementById('chica-door').style.display = (on && cPos === 3) ? 'block' : 'none';
+        }
+    }
+
+    function openMonitor() {
+        ativarAudio();
+        document.getElementById('monitor-view').style.display = 'block';
+        document.getElementById('office-view').style.display = 'none';
+        updateCamTokens();
+    }
+
+    function closeMonitor() {
+        document.getElementById('monitor-view').style.display = 'none';
+        document.getElementById('office-view').style.display = 'block';
+        if(bPos === 3 && !doorL) triggerJumpscare('#3a1a4a');
+        if(cPos === 3 && !doorR) triggerJumpscare('#a18100');
+    }
+
+    function changeCam(id) {
+        curCam = id;
+        document.getElementById('cam-label').innerText = "CAM " + id;
+        document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('c'+id).classList.add('active');
+        updateCamTokens();
+    }
+
+    function updateCamTokens() {
+        const bt = document.getElementById('token-b'), ct = document.getElementById('token-c'), msg = document.getElementById('static-msg');
+        bt.style.display = 'none'; ct.style.display = 'none'; msg.style.display = 'block';
+        if(curCam === '1A') { if(bPos===0) bt.style.display='block'; if(cPos===0) ct.style.display='block'; }
+        if(curCam === '1B') { if(bPos===1) bt.style.display='block'; if(cPos===1) ct.style.display='block'; }
+        if(curCam === '2A') { if(bPos===2) bt.style.display='block'; }
+        if(curCam === '4B') { if(cPos===2) ct.style.display='block'; }
+        if(bt.style.display === 'block' || ct.style.display === 'block') msg.style.display = 'none';
+    }
+
+    function triggerJumpscare(color) {
+        gameActive = false;
+        vitoria = false;
+        tocarGrito();
+        document.getElementById('office-view').style.display = 'none';
+        document.getElementById('monitor-view').style.display = 'none';
+        document.getElementById('jumpscare-view').style.display = 'flex';
+        document.getElementById('j-face').style.background = color;
+        setTimeout(() => {
+            document.getElementById('jumpscare-view').style.display = 'none';
+            document.getElementById('credits-view').style.display = 'flex';
+            document.getElementById('end-title').innerText = "VOCÊ FOI PEGO!";
+            document.getElementById('end-title').style.color = "red";
+            document.getElementById('btn-action').innerText = "TENTAR NOVAMENTE";
+        }, 3000);
+    }
+
+    function winGame() {
+        gameActive = false;
+        vitoria = true;
+        document.getElementById('h-val').innerText = "6";
+        document.getElementById('office-view').style.display = 'none';
+        document.getElementById('monitor-view').style.display = 'none';
+        document.getElementById('credits-view').style.display = 'flex';
+        document.getElementById('end-title').innerText = "6 AM - SOBREVIVEU!";
+        document.getElementById('end-title').style.color = "#0f0";
+        document.getElementById('btn-action').innerText = "IR PARA NOITE 2";
+    }
+
+function acaoFinal() {
+        if(vitoria) {
+            // Abre a Noite 2 em uma nova aba para contornar o bloqueio do Google
+            window.open("https://sites.google.com/view/fnafgemini/noite-2", "_blank");
+        } else {
+            reiniciarJogo();
+        }
+    }
+
+    function reiniciarJogo() {
+        power = 100; hour = 0; bPos = 0; cPos = 0; gameActive = true; vitoria = false;
+        doorL = false; doorR = false; curCam = '1A';
+        document.getElementById('p-val').innerText = "100";
+        document.getElementById('h-val').innerText = "12";
+        document.getElementById('door-l').classList.remove('closed');
+        document.getElementById('door-r').classList.remove('closed');
+        document.getElementById('btn-d-l').classList.remove('active-red');
+        document.getElementById('btn-d-r').classList.remove('active-red');
+        document.getElementById('bonnie-door').style.display = 'none';
+        document.getElementById('chica-door').style.display = 'none';
+        document.getElementById('credits-view').style.display = 'none';
+        document.getElementById('office-view').style.display = 'block';
+    }
+</script>
+</body>
+</html>
